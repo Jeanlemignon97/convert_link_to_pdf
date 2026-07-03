@@ -1,12 +1,13 @@
 {
-  "name": "convert-link-to-pdf",
+  "name": "convert-content-link-to-pdf",
   "version": "1.0.0",
   "private": true,
-  "description": "Convert a web page's main text content into a clean PDF.",
+  "description": "Convert web page content into a clean PDF.",
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "convert": "tsx src/index.ts"
+    "convert": "tsx src/index.ts",
+    "test": "node --test --import tsx src/**/*.test.ts"
   },
   "engines": {
     "node": ">=20"

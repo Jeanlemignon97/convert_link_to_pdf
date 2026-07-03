@@ -1,6 +1,6 @@
-# Convert Link to PDF
+# Convert Content Link to PDF
 
-Small TypeScript CLI that downloads a web page, extracts the main readable text, and saves it as a clean PDF.
+Small TypeScript CLI that downloads a web page, extracts its main content, and saves it as a clean PDF.
 
 ## Install
 
