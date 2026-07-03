@@ -41,6 +41,7 @@ function isMeaningfulImageUrl(src: string): boolean {
     normalized.includes("scorecardresearch") ||
     normalized.includes("doubleclick") ||
     normalized.includes("default_cover_image") ||
+    normalized.includes("default_banner") ||
     normalized.includes("sharing_fallback") ||
     normalized.includes("placeholder") ||
     normalized.endsWith(".gif")
@@ -79,6 +80,34 @@ function readImageSource(element: Element): string {
     .split(",")
     .map((entry) => entry.trim().split(/\s+/)[0] ?? "")
     .find(Boolean) ?? "";
+}
+
+function decodeStructuredImageUrl(rawUrl: string): string {
+  return rawUrl
+    .replace(/\\\//g, "/")
+    .replace(/\\u002F/gi, "/")
+    .replace(/&amp;/g, "&")
+    .trim();
+}
+
+function readStructuredImageSources(html: string): Array<{ src: string; score: number }> {
+  const sources: Array<{ src: string; score: number }> = [];
+  const imageUrlPattern =
+    /\\?"(headerImageUrl|imageUrl|songArtImageUrl|coverArtUrl|coverArtThumbnailUrl)\\?"\s*:\s*\\?"((?:\\\\.|[^"\\])+)\\?"/g;
+
+  for (const match of html.matchAll(imageUrlPattern)) {
+    const key = match[1];
+    const src = decodeStructuredImageUrl(match[2] ?? "");
+
+    if (!src || !isMeaningfulImageUrl(src)) {
+      continue;
+    }
+
+    const score = /header|cover|songArt/i.test(key) ? 85 : 70;
+    sources.push({ src, score });
+  }
+
+  return sources;
 }
 
 function parseElement(element: Element, blocks: ContentBlock[]): void {
@@ -120,7 +149,7 @@ function parseElement(element: Element, blocks: ContentBlock[]): void {
   }
 
   if (tagName === "img") {
-    const src = element.getAttribute("src");
+    const src = readImageSource(element);
     if (src) {
       blocks.push({
         type: "image",
@@ -222,6 +251,15 @@ export function extractLeadImage(html: string, baseUrl: string): LeadImage | nul
     }
   }
 
+  for (const structuredSource of readStructuredImageSources(html)) {
+    candidates.push({
+      src: makeAbsoluteUrl(structuredSource.src, baseUrl),
+      alt: "",
+      score: structuredSource.score,
+      index: index++
+    });
+  }
+
   const deduped = candidates.filter(
     (candidate, index) =>
       candidates.findIndex((item) => item.src === candidate.src) === index
@@ -257,9 +295,11 @@ export function extractDocument(html: string, url: string): ExtractedDocument {
   });
 
   const leadImage = extractLeadImage(html, url);
-  const hasImages = blocks.some((block) => block.type === "image");
+  const hasLeadImage = leadImage
+    ? blocks.some((block) => block.type === "image" && block.src === leadImage.src)
+    : false;
 
-  if (!hasImages && leadImage) {
+  if (leadImage && !hasLeadImage) {
     blocks.unshift({ type: "image", src: leadImage.src, alt: leadImage.alt });
   }
 

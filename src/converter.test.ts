@@ -6,6 +6,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 
 import {
+  extractDocument,
   extractLeadImage,
   parseContentBlocks,
   writePdf,
@@ -81,6 +82,66 @@ test("extractLeadImage ignores sharing fallback images when a real header image 
   assert.equal(leadImage?.alt, "Cover art for Example Article by Jane Doe");
 });
 
+test("extractLeadImage recognizes Genius song header cover art", () => {
+  const html = `
+    <html>
+      <body>
+        <div class="SongHeader-desktop__CoverArtContainer-sc-e7881e09-7 gvqReG">
+          <div class="SongHeader-desktop__CoverArt-sc-e7881e09-8 eqOJLj">
+            <img
+              alt="Cover art for Lecture 15: How to Manage by B Horowitz"
+              class="SizedImage__Image-sc-d4d34081-1 bnnnHV SongHeader-desktop__SizedImage-sc-e7881e09-15 CvMRd"
+              src="https://s3.amazonaws.com/rapgenius/1332988718_Maria-Bartiromo-Tech-investor-Ben-Horowitz-0B10MNEC-x-large.jpg"
+              data-visible="true"
+            >
+          </div>
+        </div>
+        <article>
+          <p>Readable article body.</p>
+          <img src="https://cdn.example.com/inline.jpg" alt="Inline figure">
+        </article>
+      </body>
+    </html>
+  `;
+
+  const leadImage = extractLeadImage(html, "https://genius.com/example");
+
+  assert.equal(
+    leadImage?.src,
+    "https://s3.amazonaws.com/rapgenius/1332988718_Maria-Bartiromo-Tech-investor-Ben-Horowitz-0B10MNEC-x-large.jpg"
+  );
+  assert.equal(leadImage?.alt, "Cover art for Lecture 15: How to Manage by B Horowitz");
+});
+
+test("extractLeadImage falls back to structured header image urls when the visible header image is lazy-loaded", () => {
+  const html = `
+    <html>
+      <body>
+        <div class="SongHeader-desktop__CoverArtContainer-sc-e7881e09-7 gvqReG">
+          <div class="SongHeader-desktop__CoverArt-sc-e7881e09-8 eqOJLj">
+            <img
+              alt="Cover art for Lecture 15: How to Manage by B Horowitz"
+              class="SizedImage__Image-sc-d4d34081-1 bnnnHV SongHeader-desktop__SizedImage-sc-e7881e09-15 CvMRd"
+            >
+          </div>
+        </div>
+        <script>
+          window.__CONFIG__ = "{\\"headerImageUrl\\":\\"https://assets.genius.com/images/default_banner.png?1783019845\\"}";
+          window.__APP_DATA__ = "{\\"entities\\":{\\"artists\\":{\\"18779\\":{\\"imageUrl\\":\\"https://s3.amazonaws.com/rapgenius/author.jpg\\",\\"headerImageUrl\\":\\"https://s3.amazonaws.com/rapgenius/header.jpg\\"}}}}";
+        </script>
+        <article>
+          <p>Readable article body.</p>
+          <img src="https://cdn.example.com/inline.jpg" alt="Inline figure">
+        </article>
+      </body>
+    </html>
+  `;
+
+  const leadImage = extractLeadImage(html, "https://genius.com/example");
+
+  assert.equal(leadImage?.src, "https://s3.amazonaws.com/rapgenius/header.jpg");
+});
+
 test("extractLeadImage skips empty image sources instead of resolving them to the page URL", () => {
   const html = `
     <html>
@@ -96,6 +157,41 @@ test("extractLeadImage skips empty image sources instead of resolving them to th
   const leadImage = extractLeadImage(html, "https://example.com/article");
 
   assert.equal(leadImage?.src, "https://cdn.example.com/real-image.jpg");
+});
+
+test("extractDocument prepends the header author image even when the article has inline images", () => {
+  const html = `
+    <html>
+      <body>
+        <header data-testid="song-header">
+          <img
+            src="https://cdn.example.com/author.jpg"
+            alt="Author image for Jane Doe"
+          >
+        </header>
+        <main>
+          <article>
+            <h1>Article title</h1>
+            <p>Readable article body with enough text to make this the selected article content.</p>
+            <p>Second readable paragraph with enough text to keep the page body focused on the article.</p>
+            <p>Third readable paragraph with enough text to keep the page body focused on the article.</p>
+            <p>Fourth readable paragraph with enough text to keep the page body focused on the article.</p>
+            <img src="https://cdn.example.com/inline.jpg" alt="Inline figure">
+          </article>
+        </main>
+      </body>
+    </html>
+  `;
+
+  const document = extractDocument(html, "https://example.com/article");
+
+  assert.deepEqual(
+    document.blocks.filter((block) => block.type === "image").slice(0, 2),
+    [
+      { type: "image", src: "https://cdn.example.com/author.jpg", alt: "Author image for Jane Doe" },
+      { type: "image", src: "https://cdn.example.com/inline.jpg", alt: "Inline figure" }
+    ]
+  );
 });
 
 test("writePdf includes contents, conversion metadata, source url, and page labels", async () => {

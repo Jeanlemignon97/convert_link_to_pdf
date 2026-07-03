@@ -9,7 +9,7 @@
     "convert": "tsx src/index.ts",
     "web": "tsx src/web/server.ts",
     "start": "node dist/web/server.js",
-    "test": "node --test --import tsx src/**/*.test.ts"
+    "test": "node --test --import tsx src/*.test.ts src/**/*.test.ts"
   },
   "engines": {
     "node": ">=20"
