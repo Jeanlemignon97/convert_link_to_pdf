@@ -82,6 +82,30 @@ function readImageSource(element: Element): string {
     .find(Boolean) ?? "";
 }
 
+function findHeaderCoverArtImage(document: Document): HTMLImageElement | null {
+  const images = Array.from(document.querySelectorAll("img"));
+
+  return (
+    images.find((image) => {
+      const context = [
+        image.getAttribute("class") ?? "",
+        image.parentElement?.getAttribute("class") ?? "",
+        image.parentElement?.parentElement?.getAttribute("class") ?? "",
+        image.closest("[data-testid]")?.getAttribute("data-testid") ?? ""
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return /songheader|song-header|coverart|cover-art/.test(context) && Boolean(readImageSource(image));
+    }) ?? null
+  );
+}
+
+function titleFromCoverArtAlt(alt: string): string {
+  const match = alt.match(/^cover art for\s+(.+)$/i);
+  return normalizeWhitespace(match?.[1] ?? "");
+}
+
 function parseElement(element: Element, blocks: ContentBlock[]): void {
   const tagName = element.tagName.toLowerCase();
 
@@ -151,6 +175,14 @@ export function parseContentBlocks(contentHtml: string): ContentBlock[] {
   }
 
   return blocks;
+}
+
+export function extractTitle(html: string, fallbackTitle: string): string {
+  const dom = new JSDOM(html);
+  const headerImage = findHeaderCoverArtImage(dom.window.document);
+  const headerTitle = headerImage ? titleFromCoverArtAlt(headerImage.getAttribute("alt") ?? "") : "";
+
+  return headerTitle || fallbackTitle.trim() || "Untitled Document";
 }
 
 export function extractLeadImage(html: string, baseUrl: string): LeadImage | null {
@@ -267,7 +299,7 @@ export function extractDocument(html: string, url: string): ExtractedDocument {
   }
 
   return {
-    title: article.title?.trim() || "Untitled Document",
+    title: extractTitle(html, article.title ?? ""),
     sourceUrl: url,
     convertedAt: new Date().toISOString(),
     blocks

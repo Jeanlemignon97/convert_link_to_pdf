@@ -8,6 +8,7 @@ import { execFileSync } from "node:child_process";
 import {
   extractDocument,
   extractLeadImage,
+  extractTitle,
   parseContentBlocks,
   writePdf,
   type ExtractedDocument
@@ -111,6 +112,58 @@ test("extractLeadImage recognizes Genius song header cover art", () => {
     "https://s3.amazonaws.com/rapgenius/1332988718_Maria-Bartiromo-Tech-investor-Ben-Horowitz-0B10MNEC-x-large.jpg"
   );
   assert.equal(leadImage?.alt, "Cover art for Lecture 15: How to Manage by B Horowitz");
+});
+
+test("extractLeadImage recognizes Genius t2 proxied song header cover art", () => {
+  const html = `
+    <html>
+      <body>
+        <div class="SongHeader-desktop__CoverArt-sc-e7881e09-8 eqOJLj">
+          <img
+            alt="Cover art for Lecture 3: Counterintuitive Parts of Startups, and How to Have Ideas by Paul Graham"
+            class="SizedImage__Image-sc-d4d34081-1 bnnnHV SongHeader-desktop__SizedImage-sc-e7881e09-15 CvMRd"
+            src="https://t2.genius.com/unsafe/516x516/https%3A%2F%2Fimages.genius.com%2Fd79edf3522c631306f23cae59c4b15fd.640x480x1.jpg"
+            data-visible="true"
+          >
+        </div>
+        <article>
+          <p>Readable article body.</p>
+        </article>
+      </body>
+    </html>
+  `;
+
+  const leadImage = extractLeadImage(html, "https://genius.com/example");
+
+  assert.equal(
+    leadImage?.src,
+    "https://t2.genius.com/unsafe/516x516/https%3A%2F%2Fimages.genius.com%2Fd79edf3522c631306f23cae59c4b15fd.640x480x1.jpg"
+  );
+  assert.equal(
+    leadImage?.alt,
+    "Cover art for Lecture 3: Counterintuitive Parts of Startups, and How to Have Ideas by Paul Graham"
+  );
+});
+
+test("extractTitle prefers the Genius song header cover art alt title when available", () => {
+  const html = `
+    <html>
+      <head>
+        <title>Genius</title>
+      </head>
+      <body>
+        <div class="SongHeader-desktop__CoverArt-sc-e7881e09-8 eqOJLj">
+          <img
+            alt="Cover art for Lecture 6: Growth by Alex Schultz"
+            class="SizedImage__Image-sc-d4d34081-1 bnnnHV SongHeader-desktop__SizedImage-sc-e7881e09-15 CvMRd"
+            src="https://t2.genius.com/unsafe/516x516/https%3A%2F%2Fimages.rapgenius.com%2Ff4885871ba2f2ddd5fa217fa748880ca.500x187x1.png"
+          >
+        </div>
+      </body>
+    </html>
+  `;
+
+  assert.equal(extractTitle(html, "Fallback Title"), "Lecture 6: Growth by Alex Schultz");
 });
 
 test("extractLeadImage does not guess from structured artist images when the visible header image is lazy-loaded", () => {
