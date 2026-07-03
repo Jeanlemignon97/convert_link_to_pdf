@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 
 import {
   extractLeadImage,
@@ -81,4 +82,31 @@ test("writePdf includes contents, conversion metadata, source url, and page labe
   assert.match(pdfText, /436f6e74656e7473/);
   assert.match(pdfText, /436f6e[\s\S]*7465643a/);
   assert.match(pdfText, /<50>\s*40\s*<6167652031>/);
+});
+
+test("writePdf does not explode page count on long multi-page documents", async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "content-link-pdf-pages-"));
+  const outputPath = path.join(tempDir, "long.pdf");
+  const longParagraph = "This is a long paragraph used to force pagination. ".repeat(60);
+  const blocks = Array.from({ length: 40 }, (_, index) => [
+    { type: "heading", level: 2, text: `Section ${index + 1}` } as const,
+    { type: "paragraph", text: longParagraph } as const
+  ]).flat();
+
+  const document: ExtractedDocument = {
+    title: "Long Document",
+    sourceUrl: "https://example.com/long",
+    convertedAt: "2026-07-03T09:00:00.000Z",
+    blocks
+  };
+
+  await writePdf(outputPath, document);
+
+  const pdfInfo = execFileSync("pdfinfo", [outputPath], { encoding: "utf8" });
+  const pagesMatch = pdfInfo.match(/Pages:\s+(\d+)/);
+
+  assert.ok(pagesMatch, "pdfinfo should report a page count");
+  const pages = Number(pagesMatch[1]);
+  assert.ok(pages > 1, "long document should span multiple pages");
+  assert.ok(pages < 80, `page count should stay reasonable, got ${pages}`);
 });

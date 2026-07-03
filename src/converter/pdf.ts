@@ -76,6 +76,8 @@ function drawHeaderFooter(
   document: ExtractedDocument,
   pageNumber: number
 ): void {
+  const previousX = doc.x;
+  const previousY = doc.y;
   const { width, height, margins } = doc.page;
   const headerY = 28;
   const footerY = height - margins.bottom - 8;
@@ -108,6 +110,8 @@ function drawHeaderFooter(
     align: "right",
     lineBreak: false
   });
+  doc.x = previousX;
+  doc.y = previousY;
   doc.restore();
 }
 
