@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Convert Content Link to PDF</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Convertisseur de contenu web</p>
+          <h1 id="page-title">Convert Content Link to PDF</h1>
+          <p class="subtitle">
+            Colle un lien ou une liste entiere. L'application extrait le contenu lisible,
+            garde les titres et images detectees, puis exporte un PDF ou un ZIP.
+          </p>
+        </div>
+        <div class="status-card" aria-live="polite">
+          <span class="status-value" id="link-count">0</span>
+          <span class="status-label">liens detectes</span>
+        </div>
+      </section>
+
+      <section class="workspace" aria-label="Conversion">
+        <form id="convert-form" class="converter">
+          <div class="field-block">
+            <div class="field-heading">
+              <label for="bulk-links">Coller plusieurs liens</label>
+              <span>separes par espace, virgule ou retour a la ligne</span>
+            </div>
+            <textarea
+              id="bulk-links"
+              name="bulk-links"
+              spellcheck="false"
+              placeholder="https://genius.com/...
+https://example.com/article
+https://autre-site.com/page"
+            ></textarea>
+          </div>
+
+          <div class="manual-block">
+            <div class="field-heading">
+              <label>Ajouter lien par lien</label>
+              <span>utile pour verifier une petite selection</span>
+            </div>
+            <div id="link-list" class="link-list"></div>
+            <button type="button" class="secondary-button" id="add-link">+ Ajouter un lien</button>
+          </div>
+
+          <div class="actions">
+            <div class="format-note" id="format-note">Un lien genere un PDF. Plusieurs liens generent un ZIP.</div>
+            <button type="submit" class="primary-button" id="submit-button">
+              <span id="submit-label">Generer</span>
+            </button>
+          </div>
+        </form>
+
+        <aside class="side-panel" aria-label="Etat">
+          <h2>Export</h2>
+          <div class="meter">
+            <span id="export-type">PDF</span>
+            <strong id="export-count">0 fichier</strong>
+          </div>
+          <p id="message" class="message">
+            Ajoute tes liens, puis lance la conversion. Le telechargement demarre automatiquement.
+          </p>
+          <div class="tips">
+            <span>Titres conserves</span>
+            <span>Images integrees</span>
+            <span>Pagination propre</span>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

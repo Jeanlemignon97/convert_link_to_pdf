@@ -1,4 +1,4 @@
-import { extractDocument, resolveOutputPath, writePdf } from "./converter.js";
+import { fetchHtml, extractDocument, resolveOutputPath, writePdf } from "./converter.js";
 
 type ParsedArgs = {
   url: string;
@@ -13,20 +13,6 @@ function parseArgs(argv: string[]): ParsedArgs {
   }
 
   return { url, outputPath };
-}
-
-async function fetchHtml(url: string): Promise<string> {
-  const response = await fetch(url, {
-    headers: {
-      "user-agent": "Mozilla/5.0 (compatible; ConvertContentLinkToPdf/1.0; +https://github.com/)"
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch page: ${response.status} ${response.statusText}`);
-  }
-
-  return await response.text();
 }
 
 async function main(): Promise<void> {

@@ -7,6 +7,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "convert": "tsx src/index.ts",
+    "web": "tsx src/web/server.ts",
+    "start": "node dist/web/server.js",
     "test": "node --test --import tsx src/**/*.test.ts"
   },
   "engines": {
@@ -14,10 +16,14 @@
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
+    "archiver": "^8.0.0",
+    "express": "^5.2.1",
     "jsdom": "^26.1.0",
     "pdfkit": "^0.17.1"
   },
   "devDependencies": {
+    "@types/archiver": "^8.0.0",
+    "@types/express": "^5.0.6",
     "@types/jsdom": "^21.1.7",
     "@types/node": "^22.10.2",
     "@types/pdfkit": "^0.17.2",

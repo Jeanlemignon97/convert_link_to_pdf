@@ -1,6 +1,6 @@
 # Convert Content Link to PDF
 
-Small TypeScript CLI that downloads a web page, extracts its main content, and saves it as a clean PDF.
+Small TypeScript and Node.js app that downloads web pages, extracts their main content, and saves clean PDFs.
 
 ## Install
 
@@ -9,6 +9,18 @@ npm install
 ```
 
 ## Usage
+
+Start the web app:
+
+```bash
+npm run web
+```
+
+Then open `http://localhost:3000`.
+
+Paste one link to download a single PDF, or paste several links to download a ZIP containing all generated PDFs.
+
+CLI usage:
 
 ```bash
 npm run convert -- "https://example.com/article"
