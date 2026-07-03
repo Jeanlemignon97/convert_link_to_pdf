@@ -113,7 +113,7 @@ test("extractLeadImage recognizes Genius song header cover art", () => {
   assert.equal(leadImage?.alt, "Cover art for Lecture 15: How to Manage by B Horowitz");
 });
 
-test("extractLeadImage falls back to structured header image urls when the visible header image is lazy-loaded", () => {
+test("extractLeadImage does not guess from structured artist images when the visible header image is lazy-loaded", () => {
   const html = `
     <html>
       <body>
@@ -139,7 +139,7 @@ test("extractLeadImage falls back to structured header image urls when the visib
 
   const leadImage = extractLeadImage(html, "https://genius.com/example");
 
-  assert.equal(leadImage?.src, "https://s3.amazonaws.com/rapgenius/header.jpg");
+  assert.equal(leadImage?.src, "https://cdn.example.com/inline.jpg");
 });
 
 test("extractLeadImage skips empty image sources instead of resolving them to the page URL", () => {

@@ -82,34 +82,6 @@ function readImageSource(element: Element): string {
     .find(Boolean) ?? "";
 }
 
-function decodeStructuredImageUrl(rawUrl: string): string {
-  return rawUrl
-    .replace(/\\\//g, "/")
-    .replace(/\\u002F/gi, "/")
-    .replace(/&amp;/g, "&")
-    .trim();
-}
-
-function readStructuredImageSources(html: string): Array<{ src: string; score: number }> {
-  const sources: Array<{ src: string; score: number }> = [];
-  const imageUrlPattern =
-    /\\?"(headerImageUrl|imageUrl|songArtImageUrl|coverArtUrl|coverArtThumbnailUrl)\\?"\s*:\s*\\?"((?:\\\\.|[^"\\])+)\\?"/g;
-
-  for (const match of html.matchAll(imageUrlPattern)) {
-    const key = match[1];
-    const src = decodeStructuredImageUrl(match[2] ?? "");
-
-    if (!src || !isMeaningfulImageUrl(src)) {
-      continue;
-    }
-
-    const score = /header|cover|songArt/i.test(key) ? 85 : 70;
-    sources.push({ src, score });
-  }
-
-  return sources;
-}
-
 function parseElement(element: Element, blocks: ContentBlock[]): void {
   const tagName = element.tagName.toLowerCase();
 
@@ -249,15 +221,6 @@ export function extractLeadImage(html: string, baseUrl: string): LeadImage | nul
         });
       }
     }
-  }
-
-  for (const structuredSource of readStructuredImageSources(html)) {
-    candidates.push({
-      src: makeAbsoluteUrl(structuredSource.src, baseUrl),
-      alt: "",
-      score: structuredSource.score,
-      index: index++
-    });
   }
 
   const deduped = candidates.filter(
