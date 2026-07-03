@@ -127,6 +127,32 @@ test("writePdf includes contents, conversion metadata, source url, and page labe
   assert.equal(Number(pageCountMatch?.[1]), 1);
 });
 
+test("writePdf keeps repeated footers minimal on multi-page documents", async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "content-link-pdf-footer-"));
+  const outputPath = path.join(tempDir, "footer.pdf");
+  const document: ExtractedDocument = {
+    title: "Footer Document",
+    sourceUrl: "https://example.com/footer",
+    convertedAt: "2026-07-03T09:00:00.000Z",
+    blocks: Array.from({ length: 18 }, (_, index) => ({
+      type: "paragraph" as const,
+      text: `Paragraph ${index + 1}. ${"This content forces several pages without relying on repeated metadata. ".repeat(45)}`
+    }))
+  };
+
+  await writePdf(outputPath, document);
+
+  const pdfText = fs.readFileSync(outputPath).toString("latin1");
+  const pdfInfo = execFileSync("pdfinfo", [outputPath], { encoding: "utf8" });
+  const pagesMatch = pdfInfo.match(/Pages:\s+(\d+)/);
+  const repeatedLinkCount = (pdfText.match(/https:\/\/example\.com\/footer/g) ?? []).length;
+  const convertedCount = (pdfText.match(/436f6e[\s\S]{0,120}7465643a/g) ?? []).length;
+
+  assert.ok(Number(pagesMatch?.[1]) > 1);
+  assert.ok(repeatedLinkCount <= 2);
+  assert.equal(convertedCount, 1);
+});
+
 test("writePdf does not explode page count on long multi-page documents", async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "content-link-pdf-pages-"));
   const outputPath = path.join(tempDir, "long.pdf");

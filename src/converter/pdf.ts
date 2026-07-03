@@ -80,20 +80,15 @@ function drawHeaderFooter(
   const previousY = doc.y;
   const { width, height, margins } = doc.page;
   const headerY = 28;
-  const footerY = height - margins.bottom - 8;
+  const footerY = height - 34;
   const truncatedTitle =
     document.title.length > 72 ? `${document.title.slice(0, 69)}...` : document.title;
-  const footerLeft = `Converted: ${formatConversionDate(document.convertedAt)}`;
-  const footerRight = `Page ${pageNumber}`;
+  const pageLabel = `Page ${pageNumber}`;
 
   doc.save();
   doc.font("Helvetica").fontSize(9).fillColor("#666666");
   drawFixedText(doc, truncatedTitle, margins.left, headerY);
-  drawFixedText(doc, document.sourceUrl, margins.left, footerY, {
-    link: document.sourceUrl
-  });
-  drawFixedText(doc, footerLeft, margins.left, footerY - 12);
-  drawFixedText(doc, footerRight, margins.left, footerY - 12, {
+  drawFixedText(doc, pageLabel, margins.left, footerY, {
     align: "right",
     width: width - margins.left - margins.right
   });
