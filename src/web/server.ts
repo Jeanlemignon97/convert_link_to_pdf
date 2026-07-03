@@ -5,8 +5,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { createNumberedPdfFileName } from "../batch/file-names.js";
 import { mergeLinks } from "../batch/links.js";
-import { convertUrlToPdf, sanitizeFileName } from "../converter.js";
+import { convertUrlToPdf } from "../converter.js";
 
 type ConvertRequest = {
   input?: string;
@@ -30,19 +31,6 @@ const projectRoot = path.resolve(__dirname, "../..");
 const publicDir = path.join(projectRoot, "public");
 const maxLinksPerBatch = 50;
 
-function uniqueFileName(baseName: string, usedNames: Set<string>): string {
-  let fileName = `${sanitizeFileName(baseName)}.pdf`;
-  let index = 2;
-
-  while (usedNames.has(fileName)) {
-    fileName = `${sanitizeFileName(baseName)}-${index}.pdf`;
-    index += 1;
-  }
-
-  usedNames.add(fileName);
-  return fileName;
-}
-
 function cleanup(directory: string): void {
   fs.rm(directory, { recursive: true, force: true }, () => undefined);
 }
@@ -56,12 +44,12 @@ async function convertLinks(links: string[], tempDir: string): Promise<{
   const failures: ConversionFailure[] = [];
 
   for (const [index, url] of links.entries()) {
-    const fileName = uniqueFileName(`document-${index + 1}`, usedNames);
-    const filePath = path.join(tempDir, fileName);
+    const temporaryFilePath = path.join(tempDir, `document-${index + 1}.pdf`);
 
     try {
-      await convertUrlToPdf(url, filePath);
-      results.push({ url, fileName, filePath });
+      const conversion = await convertUrlToPdf(url, temporaryFilePath);
+      const fileName = createNumberedPdfFileName(index + 1, conversion.title, usedNames);
+      results.push({ url, fileName, filePath: conversion.outputPath });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       failures.push({ url, message });

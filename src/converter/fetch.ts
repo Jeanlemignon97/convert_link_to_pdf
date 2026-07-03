@@ -15,9 +15,19 @@ export async function fetchHtml(url: string): Promise<string> {
   return await response.text();
 }
 
-export async function convertUrlToPdf(url: string, outputPath: string): Promise<void> {
+export type UrlConversionResult = {
+  outputPath: string;
+  title: string;
+};
+
+export async function convertUrlToPdf(url: string, outputPath: string): Promise<UrlConversionResult> {
   const html = await fetchHtml(url);
   const document = extractDocument(html, url);
 
   await writePdf(outputPath, document);
+
+  return {
+    outputPath,
+    title: document.title
+  };
 }
