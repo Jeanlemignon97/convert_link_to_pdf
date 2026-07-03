@@ -58,6 +58,46 @@ test("extractLeadImage prefers a meaningful page image and skips tracking assets
   assert.equal(leadImage?.alt, "Cover image");
 });
 
+test("extractLeadImage ignores sharing fallback images when a real header image exists", () => {
+  const html = `
+    <html>
+      <head>
+        <meta property="og:image" content="https://assets.example.com/images/sharing_fallback.png">
+      </head>
+      <body>
+        <div data-testid="song-header">
+          <img
+            src="https://cdn.example.com/covers/article-cover.jpg"
+            alt="Cover art for Example Article by Jane Doe"
+          >
+        </div>
+      </body>
+    </html>
+  `;
+
+  const leadImage = extractLeadImage(html, "https://example.com/article");
+
+  assert.equal(leadImage?.src, "https://cdn.example.com/covers/article-cover.jpg");
+  assert.equal(leadImage?.alt, "Cover art for Example Article by Jane Doe");
+});
+
+test("extractLeadImage skips empty image sources instead of resolving them to the page URL", () => {
+  const html = `
+    <html>
+      <body>
+        <div class="hero">
+          <img alt="Hero image without source">
+        </div>
+        <img src="https://cdn.example.com/real-image.jpg">
+      </body>
+    </html>
+  `;
+
+  const leadImage = extractLeadImage(html, "https://example.com/article");
+
+  assert.equal(leadImage?.src, "https://cdn.example.com/real-image.jpg");
+});
+
 test("writePdf includes contents, conversion metadata, source url, and page labels", async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "content-link-pdf-"));
   const outputPath = path.join(tempDir, "sample.pdf");
@@ -77,11 +117,14 @@ test("writePdf includes contents, conversion metadata, source url, and page labe
 
   const pdfBuffer = fs.readFileSync(outputPath);
   const pdfText = pdfBuffer.toString("latin1");
+  const pdfInfo = execFileSync("pdfinfo", [outputPath], { encoding: "utf8" });
+  const pageCountMatch = pdfInfo.match(/Pages:\s+(\d+)/);
 
   assert.match(pdfText, /https:\/\/example\.com\/article/);
   assert.match(pdfText, /436f6e74656e7473/);
   assert.match(pdfText, /436f6e[\s\S]*7465643a/);
   assert.match(pdfText, /<50>\s*40\s*<6167652031>/);
+  assert.equal(Number(pageCountMatch?.[1]), 1);
 });
 
 test("writePdf does not explode page count on long multi-page documents", async () => {

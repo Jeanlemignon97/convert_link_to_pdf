@@ -41,6 +41,8 @@ function isMeaningfulImageUrl(src: string): boolean {
     normalized.includes("scorecardresearch") ||
     normalized.includes("doubleclick") ||
     normalized.includes("default_cover_image") ||
+    normalized.includes("sharing_fallback") ||
+    normalized.includes("placeholder") ||
     normalized.endsWith(".gif")
   );
 }
@@ -51,6 +53,32 @@ function makeAbsoluteUrl(src: string, baseUrl: string): string {
   } catch {
     return src;
   }
+}
+
+function readImageSource(element: Element): string {
+  const directSources = [
+    element.getAttribute("content"),
+    element.getAttribute("src"),
+    element.getAttribute("data-src"),
+    element.getAttribute("data-lazy-src"),
+    element.getAttribute("data-image")
+  ]
+    .map((value) => value?.trim() ?? "")
+    .filter(Boolean);
+
+  if (directSources.length > 0) {
+    return directSources[0];
+  }
+
+  const srcset = element.getAttribute("srcset")?.trim() ?? "";
+  if (!srcset) {
+    return "";
+  }
+
+  return srcset
+    .split(",")
+    .map((entry) => entry.trim().split(/\s+/)[0] ?? "")
+    .find(Boolean) ?? "";
 }
 
 function parseElement(element: Element, blocks: ContentBlock[]): void {
@@ -128,7 +156,47 @@ export function extractLeadImage(html: string, baseUrl: string): LeadImage | nul
   const dom = new JSDOM(html, { url: baseUrl });
   const { document } = dom.window;
 
-  const candidates: LeadImage[] = [];
+  const candidates: Array<LeadImage & { score: number; index: number }> = [];
+  let index = 0;
+
+  const scoreImage = (element: Element, src: string, alt: string): number => {
+    const normalizedSrc = src.toLowerCase();
+    const normalizedAlt = alt.toLowerCase();
+    const context = [
+      element.getAttribute("class") ?? "",
+      element.getAttribute("id") ?? "",
+      element.getAttribute("data-testid") ?? "",
+      element.parentElement?.getAttribute("class") ?? "",
+      element.parentElement?.getAttribute("id") ?? "",
+      element.parentElement?.getAttribute("data-testid") ?? ""
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    let score = 0;
+
+    if (alt.trim()) {
+      score += 20;
+    }
+
+    if (/(cover|author|avatar|profile|hero|header|art)/.test(normalizedAlt)) {
+      score += 40;
+    }
+
+    if (/(cover|author|avatar|profile|hero|header|art|image|photo)/.test(normalizedSrc)) {
+      score += 20;
+    }
+
+    if (/(cover|author|avatar|profile|hero|header|song-header)/.test(context)) {
+      score += 30;
+    }
+
+    if (/(fallback|placeholder|default|sprite|logo)/.test(normalizedSrc) && !alt.trim()) {
+      score -= 50;
+    }
+
+    return score;
+  };
 
   for (const selector of [
     'meta[property="og:image"]',
@@ -136,15 +204,20 @@ export function extractLeadImage(html: string, baseUrl: string): LeadImage | nul
     "img"
   ]) {
     for (const element of Array.from(document.querySelectorAll(selector))) {
-      const rawSrc =
-        element.getAttribute("content") ??
-        element.getAttribute("src") ??
-        "";
+      const rawSrc = readImageSource(element);
+      if (!rawSrc) {
+        continue;
+      }
       const src = makeAbsoluteUrl(rawSrc.trim(), baseUrl);
       const alt = (element.getAttribute("alt") ?? "").trim();
 
       if (src && isMeaningfulImageUrl(src)) {
-        candidates.push({ src, alt });
+        candidates.push({
+          src,
+          alt,
+          score: scoreImage(element, src, alt),
+          index: index++
+        });
       }
     }
   }
@@ -154,7 +227,17 @@ export function extractLeadImage(html: string, baseUrl: string): LeadImage | nul
       candidates.findIndex((item) => item.src === candidate.src) === index
   );
 
-  return deduped[0] ?? null;
+  deduped.sort((left, right) => {
+    if (right.score !== left.score) {
+      return right.score - left.score;
+    }
+
+    return left.index - right.index;
+  });
+
+  const best = deduped[0];
+
+  return best ? { src: best.src, alt: best.alt } : null;
 }
 
 export function extractDocument(html: string, url: string): ExtractedDocument {

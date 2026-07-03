@@ -88,31 +88,56 @@ function drawHeaderFooter(
 
   doc.save();
   doc.font("Helvetica").fontSize(9).fillColor("#666666");
-  doc.text(truncatedTitle, margins.left, headerY, {
-    width: width - margins.left - margins.right,
-    align: "left",
-    lineBreak: false
+  drawFixedText(doc, truncatedTitle, margins.left, headerY);
+  drawFixedText(doc, document.sourceUrl, margins.left, footerY, {
+    link: document.sourceUrl
   });
-  doc.text(document.sourceUrl, margins.left, footerY, {
-    width: width - margins.left - margins.right,
-    align: "left",
-    lineBreak: false,
-    link: document.sourceUrl,
-    underline: false
-  });
-  doc.text(footerLeft, margins.left, footerY - 12, {
-    width: width - margins.left - margins.right,
-    align: "left",
-    lineBreak: false
-  });
-  doc.text(footerRight, margins.left, footerY - 12, {
-    width: width - margins.left - margins.right,
+  drawFixedText(doc, footerLeft, margins.left, footerY - 12);
+  drawFixedText(doc, footerRight, margins.left, footerY - 12, {
     align: "right",
-    lineBreak: false
+    width: width - margins.left - margins.right
   });
   doc.x = previousX;
   doc.y = previousY;
   doc.restore();
+}
+
+function drawFixedText(
+  doc: PDFKit.PDFDocument,
+  text: string,
+  x: number,
+  y: number,
+  options: { align?: "left" | "right"; width?: number; link?: string } = {}
+): void {
+  const safeText = `${text ?? ""}`.replace(/\n/g, " ");
+
+  if (!safeText) {
+    return;
+  }
+
+  const textWidth = doc.widthOfString(safeText);
+  const wordCount = safeText.trim() ? safeText.trim().split(/\s+/).length : 1;
+  let drawX = x;
+
+  if (options.align === "right" && options.width) {
+    drawX = x + options.width - textWidth;
+  }
+
+  const internalDoc = doc as PDFKit.PDFDocument & {
+    _fragment: (
+      text: string,
+      x: number,
+      y: number,
+      options: Record<string, unknown>
+    ) => void;
+  };
+
+  internalDoc._fragment(safeText, drawX, y, {
+    lineBreak: false,
+    textWidth,
+    wordCount,
+    link: options.link
+  });
 }
 
 async function renderImageBlock(doc: PDFKit.PDFDocument, block: Extract<ContentBlock, { type: "image" }>): Promise<void> {
@@ -196,10 +221,9 @@ export async function writePdf(outputPath: string, document: ExtractedDocument):
         right: 56
       },
       autoFirstPage: true,
+      bufferPages: true,
       compress: false
     });
-    let pageNumber = 1;
-    let isDecoratingPage = false;
 
     const stream = fs.createWriteStream(outputPath);
     stream.on("finish", resolve);
@@ -212,16 +236,6 @@ export async function writePdf(outputPath: string, document: ExtractedDocument):
       doc.info.Subject = "Converted web content PDF";
       doc.info.Author = document.sourceUrl;
       doc.info.Keywords = "pdf, web content, conversion";
-
-      doc.on("pageAdded", () => {
-        if (isDecoratingPage) {
-          return;
-        }
-        pageNumber += 1;
-        isDecoratingPage = true;
-        drawHeaderFooter(doc, document, pageNumber);
-        isDecoratingPage = false;
-      });
 
       doc.font("Helvetica-Bold").fontSize(20).text(document.title);
       doc.moveDown(0.4);
@@ -240,9 +254,12 @@ export async function writePdf(outputPath: string, document: ExtractedDocument):
         await renderBlock(doc, block);
       }
 
-      isDecoratingPage = true;
-      drawHeaderFooter(doc, document, 1);
-      isDecoratingPage = false;
+      const pageRange = doc.bufferedPageRange();
+      for (let pageIndex = pageRange.start; pageIndex < pageRange.start + pageRange.count; pageIndex += 1) {
+        doc.switchToPage(pageIndex);
+        drawHeaderFooter(doc, document, pageIndex - pageRange.start + 1);
+      }
+
       doc.end();
     })().catch(reject);
   });
