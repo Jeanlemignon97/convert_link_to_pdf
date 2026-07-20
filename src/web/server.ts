@@ -8,10 +8,12 @@ import { fileURLToPath } from "node:url";
 import { createNumberedPdfFileName } from "../batch/file-names.js";
 import { mergeLinks } from "../batch/links.js";
 import { convertUrlToPdf } from "../converter.js";
+import { shouldSendZip } from "./response-policy.js";
 
 type ConvertRequest = {
   input?: string;
   links?: string[];
+  forceZip?: boolean;
 };
 
 type ConversionResult = {
@@ -119,7 +121,9 @@ app.post("/api/convert", async (request, response) => {
     return;
   }
 
-  if (results.length === 1 && failures.length === 0) {
+  const forceZip = Boolean(body.forceZip);
+
+  if (!shouldSendZip(results.length, failures.length, forceZip) && results.length === 1) {
     const [result] = results;
     response.download(result.filePath, result.fileName, () => cleanup(tempDir));
     return;

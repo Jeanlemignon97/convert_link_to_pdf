@@ -2,6 +2,7 @@ const form = document.querySelector("#convert-form");
 const bulkInput = document.querySelector("#bulk-links");
 const linkList = document.querySelector("#link-list");
 const addLinkButton = document.querySelector("#add-link");
+const forceZipCheckbox = document.querySelector("#force-zip");
 const submitButton = document.querySelector("#submit-button");
 const submitLabel = document.querySelector("#submit-label");
 const linkCount = document.querySelector("#link-count");
@@ -27,13 +28,16 @@ function currentLinks() {
 
 function updateSummary() {
   const count = currentLinks().length;
-  const type = count > 1 ? "ZIP" : "PDF";
+  const forceZip = forceZipCheckbox.checked;
+  const type = forceZip || count > 1 ? "ZIP" : "PDF";
 
   linkCount.textContent = String(count);
   exportType.textContent = type;
   exportCount.textContent = `${count} ${count > 1 ? "fichiers" : "fichier"}`;
   formatNote.textContent =
-    count > 1 ? "Plusieurs liens seront regroupes dans un fichier ZIP." : "Un lien genere un PDF direct.";
+    forceZip || count > 1
+      ? "La conversion produira un fichier ZIP."
+      : "Un lien genere un PDF direct.";
 }
 
 function createLinkRow(value = "") {
@@ -95,7 +99,8 @@ async function submitConversion(event) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         input: bulkInput.value,
-        links: currentManualLinks()
+        links: currentManualLinks(),
+        forceZip: forceZipCheckbox.checked
       })
     });
 
@@ -125,6 +130,7 @@ async function submitConversion(event) {
 }
 
 bulkInput.addEventListener("input", updateSummary);
+forceZipCheckbox.addEventListener("change", updateSummary);
 addLinkButton.addEventListener("click", () => {
   createLinkRow();
   linkList.lastElementChild?.querySelector("input")?.focus();
